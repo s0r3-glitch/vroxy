@@ -6,6 +6,7 @@ from aiohttp import web
 from app.config import config
 from app.middleware import makeTokenAuthzMiddleware
 from app.resolver import resolveUrl
+from app.normalize import normalizeUrl, normalizeLocal
 from app.exceptions import *
 
 routes = web.RouteTableDef()
@@ -20,22 +21,49 @@ class Health(web.View):
 @routes.view("/")
 class YTDLProxy(web.View):
     async def head(self):
-        # log.debug('HEAD headers')
-        # log.debug(self.request.headers)
+        log.debug('HEAD headers')
+        log.debug(self.request.headers)
         if not self.request.query.get("url") and not self.request.query.get("u"):
             res = web.Response(status=404)
             return res
         return await self.process()
 
     async def get(self):
-        # log.debug('GET headers')
-        # log.debug(self.request.headers)
-        if not self.request.query.get("url") and not self.request.query.get("u"):
+        log.debug(f'GET:Headers: {self.request.headers}')
+        # handles all the logic for youtube videos
+        if self.request.query.get("url") or self.request.query.get("u"):
+            log.debug(f'GET:URL:Raw: {self.request.query.get("url")}')
+        
+            # Runs the URL through the normalizer
+            url = normalizeUrl(self.request.query.get("url") or self.request.query.get("u"))
+            log.debug(f"GET:Normalize:URL: {url}")
+
+            # Processes the URL through the resolver and then returns the response
+            return await self.process()
+
+           # handles all the logic for local files     
+        elif self.request.query.get("local") or self.request.query.get("l"):
+            log.debug(f'GET:Local:Raw: {self.request.query.get("local")}')
+            #Runs the URL through the normalizer
+            url = normalizeLocal(self.request.query.get("local") or self.request.query.get("l"))
+            if url == 404:
+                log.debug(f"GET:Local: Yo shit aint found fam fuck off")
+                res = web.Response(status=404, text="Yo shit aint found fuck off")
+                return res
+            log.debug(f"GET:Normalize:Local: {url}")
+            #returns the file
+            
+            log.debug(f"GET:Local: We found yo shit fam here yous go")
+            return web.FileResponse(url)
+        
+        # Fall back to 404 if no url or local is provided
+        else:
             res = web.Response(status=404, text="Missing Url Param")
             return res
-        return await self.process()
+        
 
     async def process(self):
+        log.debug('Processing request')
         url = None
         res = web.Response(status=500)
         try:
