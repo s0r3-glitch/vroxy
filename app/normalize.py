@@ -13,7 +13,7 @@ def normalizeUrl(url) -> str:
     return urlunparse(url_parts)
 
 def normalizeLocal(url) -> str:
-    local_path = "/mnt/d/homeword/"
+    local_path = "/mnt/share/homeword/"
     local_url = local_path + url
     log.debug(f"local_url: {local_url}")
     # Generates a directory listing of the local path
